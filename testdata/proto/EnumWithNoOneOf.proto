@@ -1,0 +1,12 @@
+syntax = "proto3";
+package samples;
+
+message EnumWithNoOneOf {
+    enum inline {
+        FOO = 0;
+        BAR = 1;
+        FIZZ = 2;
+        BUZZ = 3;
+    }
+    inline someChoice = 1;
+}
