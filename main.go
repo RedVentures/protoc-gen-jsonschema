@@ -35,12 +35,13 @@ const (
 )
 
 var (
-	allowNullValues              bool = false
-	disallowEnumOneOf            bool = false
-	disallowAdditionalProperties bool = false
-	disallowBigIntsAsStrings     bool = false
-	debugLogging                 bool = false
-	globalPkg                         = &ProtoPackage{
+	allowNullValues              bool
+	allowEnumOneOf               bool
+	allowOneOf                   bool
+	disallowAdditionalProperties bool
+	disallowBigIntsAsStrings     bool
+	debugLogging                 bool
+	globalPkg                    = &ProtoPackage{
 		name:     "",
 		parent:   nil,
 		children: make(map[string]*ProtoPackage),
@@ -68,7 +69,8 @@ type LogLevel int
 
 func init() {
 	flag.BoolVar(&allowNullValues, "allow_null_values", false, "Allow NULL values to be validated")
-	flag.BoolVar(&disallowEnumOneOf, "disallow_enum_one_of", false, "Disallows enums to have number value as well as name value")
+	flag.BoolVar(&allowEnumOneOf, "allow_enum_one_of", true, "Allows enums to have number value as well as name value")
+	flag.BoolVar(&allowOneOf, "allow_one_of", true, "Allows oneOf types")
 	flag.BoolVar(&disallowAdditionalProperties, "disallow_additional_properties", false, "Disallow additional properties")
 	flag.BoolVar(&disallowBigIntsAsStrings, "disallow_bigints_as_strings", false, "Disallow bigints to be strings (eg scientific notation)")
 	flag.BoolVar(&debugLogging, "debug", false, "Log debug messages")
@@ -179,7 +181,6 @@ func (pkg *ProtoPackage) relativelyLookupPackage(name string) (*ProtoPackage, bo
 
 // Convert a proto "field" (essentially a type-switch with some recursion):
 func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, msg *descriptor.DescriptorProto) (*jsonschema.Type, error) {
-
 	// Prepare a new jsonschema.Type for our eventual return value:
 	jsonSchemaType := &jsonschema.Type{
 		Properties: make(map[string]*jsonschema.Type),
@@ -189,7 +190,7 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 	switch desc.GetType() {
 	case descriptor.FieldDescriptorProto_TYPE_DOUBLE,
 		descriptor.FieldDescriptorProto_TYPE_FLOAT:
-		if allowNullValues {
+		if allowNullValues && allowOneOf {
 			jsonSchemaType.OneOf = []*jsonschema.Type{
 				{Type: gojsonschema.TYPE_NULL},
 				{Type: gojsonschema.TYPE_NUMBER},
@@ -203,7 +204,7 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 		descriptor.FieldDescriptorProto_TYPE_FIXED32,
 		descriptor.FieldDescriptorProto_TYPE_SFIXED32,
 		descriptor.FieldDescriptorProto_TYPE_SINT32:
-		if allowNullValues {
+		if allowNullValues && allowOneOf {
 			jsonSchemaType.OneOf = []*jsonschema.Type{
 				{Type: gojsonschema.TYPE_NULL},
 				{Type: gojsonschema.TYPE_INTEGER},
@@ -217,17 +218,22 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 		descriptor.FieldDescriptorProto_TYPE_FIXED64,
 		descriptor.FieldDescriptorProto_TYPE_SFIXED64,
 		descriptor.FieldDescriptorProto_TYPE_SINT64:
-		jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_INTEGER})
-		if !disallowBigIntsAsStrings {
-			jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_STRING})
-		}
-		if allowNullValues {
-			jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_NULL})
+
+		if allowOneOf {
+			jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_INTEGER})
+			if !disallowBigIntsAsStrings {
+				jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_STRING})
+			}
+			if allowNullValues {
+				jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_NULL})
+			}
+		} else {
+			jsonSchemaType.Type = gojsonschema.TYPE_INTEGER
 		}
 
 	case descriptor.FieldDescriptorProto_TYPE_STRING,
 		descriptor.FieldDescriptorProto_TYPE_BYTES:
-		if allowNullValues {
+		if allowNullValues && allowOneOf {
 			jsonSchemaType.OneOf = []*jsonschema.Type{
 				{Type: gojsonschema.TYPE_NULL},
 				{Type: gojsonschema.TYPE_STRING},
@@ -242,15 +248,15 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 		// actually be the string representation. So in something like data lake, the value for the enum column would be the string
 		// or the number enum representation of that string. Therefore, we must only allow the string and not the number to be sent
 
-		if disallowEnumOneOf {
-			jsonSchemaType.Type = gojsonschema.TYPE_STRING
-		} else {
+		if allowEnumOneOf && allowOneOf {
 			jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_STRING})
 			jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_INTEGER})
 
 			if allowNullValues {
 				jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: gojsonschema.TYPE_NULL})
 			}
+		} else {
+			jsonSchemaType.Type = gojsonschema.TYPE_STRING
 		}
 
 		// Go through all the enums we have, see if we can match any to this field by name:
@@ -267,8 +273,7 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 					jsonSchemaType.Enum = append(jsonSchemaType.Enum, enumValue.Name)
 
 					// NOTE if we are going to allow oneOf, then we should just stick to the default way
-					allowEnumOneOfs := !disallowEnumOneOf
-					if allowEnumOneOfs {
+					if allowEnumOneOf {
 						jsonSchemaType.Enum = append(jsonSchemaType.Enum, enumValue.Number)
 					}
 				}
@@ -276,7 +281,7 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 		}
 
 	case descriptor.FieldDescriptorProto_TYPE_BOOL:
-		if allowNullValues {
+		if allowNullValues && allowOneOf {
 			jsonSchemaType.OneOf = []*jsonschema.Type{
 				{Type: gojsonschema.TYPE_NULL},
 				{Type: gojsonschema.TYPE_BOOLEAN},
@@ -318,7 +323,7 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 			jsonSchemaType.Items.OneOf = jsonSchemaType.OneOf
 		}
 
-		if allowNullValues {
+		if allowNullValues && allowOneOf {
 			jsonSchemaType.OneOf = []*jsonschema.Type{
 				{Type: gojsonschema.TYPE_NULL},
 				{Type: gojsonschema.TYPE_ARRAY},
@@ -355,7 +360,7 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 		}
 
 		// Optionally allow NULL values:
-		if allowNullValues {
+		if allowNullValues && allowOneOf {
 			jsonSchemaType.OneOf = []*jsonschema.Type{
 				{Type: gojsonschema.TYPE_NULL},
 				{Type: jsonSchemaType.Type},
@@ -377,7 +382,7 @@ func convertMessageType(curPkg *ProtoPackage, msg *descriptor.DescriptorProto) (
 	}
 
 	// Optionally allow NULL values:
-	if allowNullValues {
+	if allowNullValues && allowOneOf {
 		jsonSchemaType.OneOf = []*jsonschema.Type{
 			{Type: gojsonschema.TYPE_NULL},
 			{Type: gojsonschema.TYPE_OBJECT},
@@ -413,14 +418,21 @@ func convertEnumType(enum *descriptor.EnumDescriptorProto) (jsonschema.Type, err
 		Version: jsonschema.Version,
 	}
 
-	// Allow both strings and integers:
-	jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: "string"})
-	jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: "integer"})
+	if allowEnumOneOf && allowOneOf {
+		// Allow both strings and integers:
+		jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: "string"})
+		jsonSchemaType.OneOf = append(jsonSchemaType.OneOf, &jsonschema.Type{Type: "integer"})
+	} else {
+		jsonSchemaType.Type = gojsonschema.TYPE_STRING
+	}
 
 	// Add the allowed values:
 	for _, enumValue := range enum.Value {
 		jsonSchemaType.Enum = append(jsonSchemaType.Enum, enumValue.Name)
-		jsonSchemaType.Enum = append(jsonSchemaType.Enum, enumValue.Number)
+
+		if allowEnumOneOf && allowOneOf {
+			jsonSchemaType.Enum = append(jsonSchemaType.Enum, enumValue.Number)
+		}
 	}
 
 	return jsonSchemaType, nil
@@ -557,8 +569,14 @@ func commandLineParameter(parameters string) {
 			allowNullValues = true
 		case "debug":
 			debugLogging = true
-		case "disallow_enum_one_of":
-			disallowEnumOneOf = true
+		case "allow_enum_one_of":
+			allowEnumOneOf = true
+		case "allow_one_of":
+			if allowNullValues {
+				panic("flags 'allow_null_values' and 'disallow_one_of' cannot both be on")
+			}
+
+			allowOneOf = true
 		case "disallow_additional_properties":
 			disallowAdditionalProperties = true
 		case "disallow_bigints_as_strings":
