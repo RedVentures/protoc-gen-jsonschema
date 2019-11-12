@@ -36,8 +36,8 @@ const (
 
 var (
 	allowNullValues              bool
-	allowEnumOneOf               bool
-	allowOneOf                   bool
+	disallowEnumOneOf            bool
+	disallowOneOf                bool
 	disallowAdditionalProperties bool
 	disallowBigIntsAsStrings     bool
 	debugLogging                 bool
@@ -69,8 +69,8 @@ type LogLevel int
 
 func init() {
 	flag.BoolVar(&allowNullValues, "allow_null_values", false, "Allow NULL values to be validated")
-	flag.BoolVar(&allowEnumOneOf, "allow_enum_one_of", true, "Allows enums to have number value as well as name value")
-	flag.BoolVar(&allowOneOf, "allow_one_of", true, "Allows oneOf types")
+	flag.BoolVar(&disallowEnumOneOf, "disallow_enum_one_of", false, "Disallows enums to have number value as well as name value")
+	flag.BoolVar(&disallowOneOf, "disallow_one_of", false, "Disallows oneOf types")
 	flag.BoolVar(&disallowAdditionalProperties, "disallow_additional_properties", false, "Disallow additional properties")
 	flag.BoolVar(&disallowBigIntsAsStrings, "disallow_bigints_as_strings", false, "Disallow bigints to be strings (eg scientific notation)")
 	flag.BoolVar(&debugLogging, "debug", false, "Log debug messages")
@@ -181,6 +181,10 @@ func (pkg *ProtoPackage) relativelyLookupPackage(name string) (*ProtoPackage, bo
 
 // Convert a proto "field" (essentially a type-switch with some recursion):
 func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, msg *descriptor.DescriptorProto) (*jsonschema.Type, error) {
+	// Helpers for this inverse logic shit
+	allowEnumOneOf := !disallowEnumOneOf
+	allowOneOf := !disallowOneOf
+
 	// Prepare a new jsonschema.Type for our eventual return value:
 	jsonSchemaType := &jsonschema.Type{
 		Properties: make(map[string]*jsonschema.Type),
@@ -374,6 +378,8 @@ func convertField(curPkg *ProtoPackage, desc *descriptor.FieldDescriptorProto, m
 
 // Converts a proto "MESSAGE" into a JSON-Schema:
 func convertMessageType(curPkg *ProtoPackage, msg *descriptor.DescriptorProto) (jsonschema.Type, error) {
+	// Helpers for this inverse logic shit
+	allowOneOf := !disallowOneOf
 
 	// Prepare a new jsonschema:
 	jsonSchemaType := jsonschema.Type{
@@ -412,6 +418,9 @@ func convertMessageType(curPkg *ProtoPackage, msg *descriptor.DescriptorProto) (
 
 // Converts a proto "ENUM" into a JSON-Schema:
 func convertEnumType(enum *descriptor.EnumDescriptorProto) (jsonschema.Type, error) {
+	// Helpers for this inverse logic shit
+	allowEnumOneOf := !disallowEnumOneOf
+	allowOneOf := !disallowOneOf
 
 	// Prepare a new jsonschema.Type for our eventual return value:
 	jsonSchemaType := jsonschema.Type{
@@ -569,14 +578,14 @@ func commandLineParameter(parameters string) {
 			allowNullValues = true
 		case "debug":
 			debugLogging = true
-		case "allow_enum_one_of":
-			allowEnumOneOf = true
-		case "allow_one_of":
+		case "disallow_enum_one_of":
+			disallowEnumOneOf = true
+		case "disallow_one_of":
 			if allowNullValues {
 				panic("flags 'allow_null_values' and 'disallow_one_of' cannot both be on")
 			}
 
-			allowOneOf = true
+			disallowOneOf = true
 		case "disallow_additional_properties":
 			disallowAdditionalProperties = true
 		case "disallow_bigints_as_strings":

@@ -23,8 +23,8 @@ var (
 
 type SampleProto struct {
 	AllowNullValues    bool
-	AllowEnumOneOf     bool
-	AllowOneOf         bool
+	DisallowEnumOneOf  bool
+	DisallowOneOf      bool
 	ExpectedJsonSchema []string
 	FilesToGenerate    []string
 	ProtoFileName      string
@@ -71,8 +71,8 @@ func testConvertSampleProtos(t *testing.T, sampleProto SampleProto) {
 
 	// Set allowNullValues accordingly:
 	allowNullValues = sampleProto.AllowNullValues
-	allowEnumOneOf = sampleProto.AllowEnumOneOf
-	allowOneOf = sampleProto.AllowOneOf
+	disallowEnumOneOf = sampleProto.DisallowEnumOneOf
+	disallowOneOf = sampleProto.DisallowOneOf
 
 	// Open the sample proto file:
 	sampleProtoFileName := fmt.Sprintf("%v/%v", sampleProtoDirectory, sampleProto.ProtoFileName)
@@ -115,8 +115,6 @@ func configureSampleProtos() {
 	// ArrayOfMessages:
 	sampleProtos["ArrayOfMessages"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.PayloadMessage, testdata.ArrayOfMessages},
 		FilesToGenerate:    []string{"ArrayOfMessages.proto", "PayloadMessage.proto"},
 		ProtoFileName:      "ArrayOfMessages.proto",
@@ -125,8 +123,6 @@ func configureSampleProtos() {
 	// ArrayOfEnums
 	sampleProtos["ArrayOfEnums"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.ArrayOfEnums},
 		FilesToGenerate:    []string{"ArrayOfEnums.proto"},
 		ProtoFileName:      "ArrayOfEnums.proto",
@@ -135,8 +131,6 @@ func configureSampleProtos() {
 	// ArrayOfObjects:
 	sampleProtos["ArrayOfObjects"] = SampleProto{
 		AllowNullValues:    true,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.ArrayOfObjects},
 		FilesToGenerate:    []string{"ArrayOfObjects.proto"},
 		ProtoFileName:      "ArrayOfObjects.proto",
@@ -145,8 +139,6 @@ func configureSampleProtos() {
 	// ArrayOfPrimitives:
 	sampleProtos["ArrayOfPrimitives"] = SampleProto{
 		AllowNullValues:    true,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.ArrayOfPrimitives},
 		FilesToGenerate:    []string{"ArrayOfPrimitives.proto"},
 		ProtoFileName:      "ArrayOfPrimitives.proto",
@@ -155,8 +147,6 @@ func configureSampleProtos() {
 	// EnumCeption:
 	sampleProtos["EnumCeption"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.PayloadMessage, testdata.ImportedEnum, testdata.EnumCeption},
 		FilesToGenerate:    []string{"Enumception.proto", "PayloadMessage.proto", "ImportedEnum.proto"},
 		ProtoFileName:      "Enumception.proto",
@@ -165,8 +155,8 @@ func configureSampleProtos() {
 	// EnumWithNoOneOf:
 	sampleProtos["EnumWithNoOneOf"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     false,
-		AllowOneOf:         false,
+		DisallowEnumOneOf:  true,
+		DisallowOneOf:      true,
 		ExpectedJsonSchema: []string{testdata.EnumWithNoOneOf},
 		FilesToGenerate:    []string{"EnumWithNoOneOf.proto"},
 		ProtoFileName:      "EnumWithNoOneOf.proto",
@@ -175,8 +165,6 @@ func configureSampleProtos() {
 	// ImportedEnum:
 	sampleProtos["ImportedEnum"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.ImportedEnum},
 		FilesToGenerate:    []string{"ImportedEnum.proto"},
 		ProtoFileName:      "ImportedEnum.proto",
@@ -185,8 +173,6 @@ func configureSampleProtos() {
 	// NestedMessage:
 	sampleProtos["NestedMessage"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.PayloadMessage, testdata.NestedMessage},
 		FilesToGenerate:    []string{"NestedMessage.proto", "PayloadMessage.proto"},
 		ProtoFileName:      "NestedMessage.proto",
@@ -195,8 +181,6 @@ func configureSampleProtos() {
 	// NestedObject:
 	sampleProtos["NestedObject"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.NestedObject},
 		FilesToGenerate:    []string{"NestedObject.proto"},
 		ProtoFileName:      "NestedObject.proto",
@@ -205,8 +189,8 @@ func configureSampleProtos() {
 	// NoOneOf:
 	sampleProtos["NoOneOf"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     false,
-		AllowOneOf:         false,
+		DisallowEnumOneOf:  true,
+		DisallowOneOf:      true,
 		ExpectedJsonSchema: []string{testdata.NoOneOf},
 		FilesToGenerate:    []string{"NoOneOf.proto"},
 		ProtoFileName:      "NoOneOf.proto",
@@ -215,8 +199,6 @@ func configureSampleProtos() {
 	// PayloadMessage:
 	sampleProtos["PayloadMessage"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.PayloadMessage},
 		FilesToGenerate:    []string{"PayloadMessage.proto"},
 		ProtoFileName:      "PayloadMessage.proto",
@@ -225,8 +207,6 @@ func configureSampleProtos() {
 	// SeveralEnums:
 	sampleProtos["SeveralEnums"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.FirstEnum, testdata.SecondEnum},
 		FilesToGenerate:    []string{"SeveralEnums.proto"},
 		ProtoFileName:      "SeveralEnums.proto",
@@ -235,8 +215,6 @@ func configureSampleProtos() {
 	// SeveralMessages:
 	sampleProtos["SeveralMessages"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.FirstMessage, testdata.SecondMessage},
 		FilesToGenerate:    []string{"SeveralMessages.proto"},
 		ProtoFileName:      "SeveralMessages.proto",
@@ -245,8 +223,6 @@ func configureSampleProtos() {
 	// Timestamp
 	sampleProtos["Timestamp"] = SampleProto{
 		AllowNullValues:    false,
-		AllowEnumOneOf:     true,
-		AllowOneOf:         true,
 		ExpectedJsonSchema: []string{testdata.Timestamp},
 		FilesToGenerate:    []string{"Timestamp.proto"},
 		ProtoFileName:      "Timestamp.proto",
